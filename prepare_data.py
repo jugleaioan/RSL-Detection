@@ -4,6 +4,8 @@ from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout, LSTM
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.callbacks import EarlyStopping
+
 
 # Load data
 gestures = [
@@ -38,10 +40,13 @@ X_train, X_val, y_train, y_val = train_test_split(X_padded, y_encoded, test_size
 
 # Define model
 model = Sequential([
-    LSTM(128, return_sequences=True, input_shape=(sequence_length, 63)),
+    LSTM(256, return_sequences=True, input_shape=(sequence_length, 63)),
+    Dropout(0.3),
+    LSTM(128, return_sequences=True),
+    Dropout(0.3),
     LSTM(64),
-    Dense(32, activation='relu'),
-    Dense(len(classes), activation='softmax')  # Output layer matches number of classes
+    Dense(64, activation='relu'),
+    Dense(len(classes), activation='softmax')
 ])
 
 model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
@@ -52,9 +57,9 @@ print(f"Classes: {classes}")
 print("Sample input shape:", X_padded[0].shape)
 print("Sample label:", y_encoded[0])
 
-
 # Train model
-model.fit(X_train, y_train, epochs=75, batch_size=32, validation_data=(X_val, y_val))
+early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
+model.fit(X_train, y_train, epochs=150, batch_size=32, validation_data=(X_val, y_val), callbacks=[early_stopping])
 
 # Save model
-model.save("gesture_recognition_model.h5")
+model.save("gesture_recognition_modelv3.h5")

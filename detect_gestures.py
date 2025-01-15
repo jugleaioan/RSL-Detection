@@ -9,15 +9,22 @@ gestures = [
 ]
 
 # Load model
-model = load_model("gesture_recognition_model.h5")
+model = load_model("gesture_recognition_modelv3.h5")
 
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(min_detection_confidence=0.7, min_tracking_confidence=0.7)
 
 sequence = []
-sequence_length = 20  # Window size
+sequence_length = 15
 
 cap = cv2.VideoCapture(0)
+
+
+def normalize_landmarks(landmarks):
+    # Normalize using the wrist as the origin
+    wrist = landmarks[0]
+    normalized = [(lm[0] - wrist[0], lm[1] - wrist[1], lm[2] - wrist[2]) for lm in landmarks]
+    return np.array(normalized)
 
 while cap.isOpened():
     ret, frame = cap.read()
@@ -30,10 +37,16 @@ while cap.isOpened():
 
     if result.multi_hand_landmarks:
         for hand_landmarks in result.multi_hand_landmarks:
-            # Flatten the 21 landmarks (x, y, z) into a 63-length vector
-            flattened_landmarks = []
-            for lm in hand_landmarks.landmark:
-                flattened_landmarks.extend([lm.x, lm.y, lm.z])
+            # Extract the 21 landmarks (x, y, z) as a 2D array
+            landmarks = np.array([[lm.x, lm.y, lm.z] for lm in hand_landmarks.landmark])
+
+            # Normalize the landmarks
+            normalized_landmarks = normalize_landmarks(landmarks)
+
+            # Flatten the normalized landmarks into a 1D list
+            flattened_landmarks = normalized_landmarks.flatten()
+
+            # Append to the sequence
             sequence.append(flattened_landmarks)
 
             # Keep only the last `sequence_length` frames
@@ -42,13 +55,16 @@ while cap.isOpened():
 
             # Perform prediction if the sequence length matches the required input length
             if len(sequence) == sequence_length:
-                input_sequence = np.array(sequence)  # Shape: (20, 63)
+                input_sequence = np.array(sequence)  # Shape: (sequence_length, 63)
                 input_sequence = input_sequence.reshape(1, sequence_length, 63)  # Add batch dimension
-                prediction = model.predict(input_sequence)  # Model expects shape (None, 20, 63)
-                gesture = np.argmax(prediction)  # Get the predicted gesture index
+                prediction = model.predict(input_sequence)  # Model expects shape (None, sequence_length, 63)
 
-                # Display the predicted gesture on the frame
-                cv2.putText(image, f"Gesture: {gestures[gesture]}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+                if np.max(prediction) > 0.5:  # Confidence threshold
+                    gesture = np.argmax(prediction)  # Get the predicted gesture index
+
+                    # Display the predicted gesture on the frame
+                    cv2.putText(image, f"Gesture: {gestures[gesture]}", (10, 30),
+                                cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
 
     cv2.imshow("Gesture Recognition", image)
 
