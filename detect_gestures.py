@@ -9,7 +9,7 @@ gestures = [
 ]
 
 # Load model
-model = load_model("gesture_recognition_modelv3.h5")
+model = load_model("gesture_recognition_modelv4.h5")
 
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(min_detection_confidence=0.7, min_tracking_confidence=0.7)
@@ -59,7 +59,7 @@ while cap.isOpened():
                 input_sequence = input_sequence.reshape(1, sequence_length, 63)  # Add batch dimension
                 prediction = model.predict(input_sequence)  # Model expects shape (None, sequence_length, 63)
 
-                if np.max(prediction) > 0.5:  # Confidence threshold
+                if np.max(prediction) > 0.1:  # Confidence threshold
                     gesture = np.argmax(prediction)  # Get the predicted gesture index
 
                     # Display the predicted gesture on the frame
